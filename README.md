@@ -20,7 +20,7 @@ The primary goal of this provider is to make IBM Power infrastructure management
 terraform {
   required_providers {
     powerhmc = {
-      source  = "ibm/powerhmc"
+      source  = "terraform-ibm/powerhmc"
       version = "1.0.0"
     }
   }

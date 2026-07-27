@@ -8,7 +8,7 @@
 terraform {
   required_providers {
     powerhmc = {
-      source = "ibm.com/sys/powerhmc"
+      source = "terraform-ibm/powerhmc"
     }
   }
 }

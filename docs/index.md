@@ -40,7 +40,7 @@ New to the provider? Start with the [Getting Started guide](guides/getting-start
 terraform {
   required_providers {
     powerhmc = {
-      source = "ibm.com/sys/powerhmc"
+      source = "terraform-ibm/powerhmc"
     }
   }
 }
