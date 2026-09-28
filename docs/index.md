@@ -23,6 +23,8 @@ This program may be used only in conjunction with a validly licensed and paid en
 | **Managed system (CEC) configuration** | [`powerhmc_sys_config`](resources/sys_config.md) resource · [`powerhmc_sys_config`](data-sources/sys_config.md) data source |
 | **Virtual I/O Server (VIOS) partitions** | [`powerhmc_vios`](resources/vios.md) resource · [`powerhmc_vios`](data-sources/vios.md) data source |
 | **Logical Partitions (LPARs)** | [`powerhmc_lpar`](resources/lpar.md) resource · [`powerhmc_lpar`](data-sources/lpar.md) data source |
+| **Network Bridges** | [`powerhmc_network_bridge`](resources/network_bridge.md) resource · [`powerhmc_network_bridge`](data-sources/network_bridge.md) data source |
+| **SR-IOV Adapters** | [`powerhmc_sriov`](data-sources/sriov.md) data source |
 | **Lifecycle operations** (power on/off, network boot, VIOS install) | [Actions](guides/actions.md): `powerhmc_sys_on_off`, `powerhmc_partition_power_on_off`, `powerhmc_lpar_netboot`, `powerhmc_vios_install` |
 
 New to the provider? Start with the [Getting Started guide](guides/getting-started.md).

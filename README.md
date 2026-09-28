@@ -21,7 +21,7 @@ terraform {
   required_providers {
     powerhmc = {
       source  = "terraform-ibm/powerhmc"
-      version = "1.0.0"
+      version = "1.1.0"
     }
   }
 }
@@ -46,9 +46,12 @@ Credentials can also be set via environment variables: `POWERHMC_HOST`, `POWERHM
 | Resource | `powerhmc_lpar` | Create and manage Logical Partitions (LPARs). Immutable — changes force replace. |
 | Resource | `powerhmc_vios` | Create and manage Virtual I/O Server (VIOS) partitions. Immutable — changes force replace. |
 | Resource | `powerhmc_sys_config` | Configure an existing managed system (CEC). Import required before first apply. |
-| Data source | `powerhmc_lpar` | Look up an existing LPAR by name. |
+| Resource | `powerhmc_network_bridge` | Create and manage a NetworkBridge (SEA) and participating VirtualNetworks (VLANs). Supports HA failover and load sharing. Import via `system_name/bridge_pvid`. |
+| Data source | `powerhmc_lpar` | Look up an existing LPAR by name. Returns SR-IOV logical ports and VNIC details. |
 | Data source | `powerhmc_vios` | Look up an existing VIOS partition by name. |
 | Data source | `powerhmc_sys_config` | Read the current configuration and state of a managed system. |
+| Data source | `powerhmc_network_bridge` | Read the current state of an existing NetworkBridge by `system_name` and `pvid`. |
+| Data source | `powerhmc_sriov` | Read the SR-IOV adapter inventory of a managed system. |
 | Action | `powerhmc_partition_power_on_off` | Power an LPAR or VIOS on or off. Supports AIX/Linux, IBM i, and VIOS types. |
 | Action | `powerhmc_sys_on_off` | Power a whole managed system (CEC) on or off. |
 | Action | `powerhmc_lpar_netboot` | Power on an LPAR and boot it from a network server. |

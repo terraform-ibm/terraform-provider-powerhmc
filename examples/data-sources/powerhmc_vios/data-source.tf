@@ -19,3 +19,8 @@ output "vios_ip_address" {
 output "vios_memory" {
   value = data.powerhmc_vios.my_vios.mem_config
 }
+
+# Free Ethernet adapters that can be used as SEA backing devices.
+output "free_sea_devices" {
+  value = data.powerhmc_vios.my_vios.free_sea_devices
+}

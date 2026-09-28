@@ -6,7 +6,7 @@
 # Example 1: LPAR with dedicated processors
 ##############################################
 resource "powerhmc_lpar" "dedicated" {
-  system_name = "hmc-zz1"
+  system_name = "managed-system"
   lpar_name   = "lpar-dedicated"
   # partition_type accepts "AIX/Linux" or "ibmi".
   partition_type = "AIX/Linux"
@@ -31,7 +31,7 @@ resource "powerhmc_lpar" "dedicated" {
 # Example 2: LPAR with shared (uncapped) processors
 ##############################################
 resource "powerhmc_lpar" "shared" {
-  system_name    = "hmc-zz1"
+  system_name    = "managed-system"
   lpar_name      = "lpar-shared"
   partition_type = "AIX/Linux"
 
@@ -59,7 +59,7 @@ resource "powerhmc_lpar" "shared" {
 # Example 3: LPAR with virtual networks, storage, and fibre channel
 ##############################################
 resource "powerhmc_lpar" "full" {
-  system_name    = "hmc-zz1"
+  system_name    = "managed-system"
   lpar_name      = "lpar-app01"
   profile_name   = "default_profile"
   partition_type = "AIX/Linux"
@@ -109,9 +109,105 @@ resource "powerhmc_lpar" "full" {
       port_name = "fcs0"
     }
   ]
+
   # Bound how long Terraform waits for the partition to be created or deleted.
   timeouts {
     create = "30m"
     delete = "20m"
   }
+}
+
+##############################################
+# Example 4: LPAR with SR-IOV logical ports
+##############################################
+resource "powerhmc_lpar" "sriov" {
+  system_name    = "managed-system"
+  lpar_name      = "lpar-sriov"
+  partition_type = "AIX/Linux"
+
+  mem_config = {
+    desired = 4096
+    min     = 2048
+    max     = 8192
+  }
+
+  proc_config = {
+    proc_mode            = "uncap"
+    desired_virtual_proc = 2
+    min_virtual_proc     = 1
+    max_virtual_proc     = 4
+    desired_proc_units   = "0.5"
+    min_proc_units       = "0.1"
+    max_proc_units       = "2.0"
+  }
+
+  # Each entry creates one SR-IOV logical port on the HMC after the LPAR is
+  # created. Use adapter_id and physical_port_id from the powerhmc_sriov data
+  # source to identify the target port.
+  sriov_logical_ports = [
+    {
+      adapter_id       = 1
+      physical_port_id = 0
+      port_type        = "ethernet"
+      # capacity: guaranteed bandwidth in %. Defaults to the port's minimum
+      # granularity when omitted.
+      capacity = 2
+    },
+    {
+      adapter_id       = 1
+      physical_port_id = 0
+      port_type        = "ethernet"
+      # promiscuous_mode is required when this port backs a SEA on a VIOS.
+      promiscuous_mode = true
+    },
+  ]
+}
+
+##############################################
+# Example 5: LPAR with VNIC adapters
+##############################################
+resource "powerhmc_lpar" "vnic" {
+  system_name    = "managed-system"
+  lpar_name      = "lpar-vnic"
+  partition_type = "AIX/Linux"
+
+  mem_config = {
+    desired = 4096
+    min     = 2048
+    max     = 8192
+  }
+
+  proc_config = {
+    proc_mode            = "uncap"
+    desired_virtual_proc = 2
+    min_virtual_proc     = 1
+    max_virtual_proc     = 4
+    desired_proc_units   = "0.5"
+    min_proc_units       = "0.1"
+    max_proc_units       = "2.0"
+  }
+
+  # Each vnic block creates one VNIC adapter. At least one backing_devices
+  # entry is required per VNIC. For failover-capable systems, specify two
+  # backing devices with different failover_priority values.
+  vnic = [
+    {
+      port_vlan_id = 100
+
+      backing_devices = [
+        {
+          vios_name              = "vios1"
+          sriov_adapter_id       = 1
+          sriov_physical_port_id = 0
+          failover_priority      = 1
+        },
+        {
+          vios_name              = "vios2"
+          sriov_adapter_id       = 1
+          sriov_physical_port_id = 1
+          failover_priority      = 2
+        },
+      ]
+    },
+  ]
 }

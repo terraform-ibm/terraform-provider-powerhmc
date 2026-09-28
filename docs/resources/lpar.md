@@ -12,7 +12,8 @@ Manages a Logical Partition (LPAR) on an IBM Power Systems managed system.
 
 An LPAR is a virtual server carved out of a managed system's memory, processor,
 and I/O resources. Use this resource to create AIX/Linux or IBM i partitions and
-attach virtual networks, physical volumes, and virtual Fibre Channel adapters.
+attach virtual networks, physical volumes, virtual Fibre Channel adapters,
+SR-IOV logical ports, and Virtual NIC (VNIC) adapters.
 
 ~> **LPARs are immutable.** Every managed attribute forces
 destroy-and-recreate. Changing an attribute in place returns an
@@ -29,7 +30,7 @@ destroy-and-recreate. Changing an attribute in place returns an
 # Example 1: LPAR with dedicated processors
 ##############################################
 resource "powerhmc_lpar" "dedicated" {
-  system_name = "hmc-zz1"
+  system_name = "managed-system"
   lpar_name   = "lpar-dedicated"
   # partition_type accepts "AIX/Linux" or "ibmi".
   partition_type = "AIX/Linux"
@@ -54,7 +55,7 @@ resource "powerhmc_lpar" "dedicated" {
 # Example 2: LPAR with shared (uncapped) processors
 ##############################################
 resource "powerhmc_lpar" "shared" {
-  system_name    = "hmc-zz1"
+  system_name    = "managed-system"
   lpar_name      = "lpar-shared"
   partition_type = "AIX/Linux"
 
@@ -82,7 +83,7 @@ resource "powerhmc_lpar" "shared" {
 # Example 3: LPAR with virtual networks, storage, and fibre channel
 ##############################################
 resource "powerhmc_lpar" "full" {
-  system_name    = "hmc-zz1"
+  system_name    = "managed-system"
   lpar_name      = "lpar-app01"
   profile_name   = "default_profile"
   partition_type = "AIX/Linux"
@@ -132,11 +133,107 @@ resource "powerhmc_lpar" "full" {
       port_name = "fcs0"
     }
   ]
+
   # Bound how long Terraform waits for the partition to be created or deleted.
   timeouts {
     create = "30m"
     delete = "20m"
   }
+}
+
+##############################################
+# Example 4: LPAR with SR-IOV logical ports
+##############################################
+resource "powerhmc_lpar" "sriov" {
+  system_name    = "managed-system"
+  lpar_name      = "lpar-sriov"
+  partition_type = "AIX/Linux"
+
+  mem_config = {
+    desired = 4096
+    min     = 2048
+    max     = 8192
+  }
+
+  proc_config = {
+    proc_mode            = "uncap"
+    desired_virtual_proc = 2
+    min_virtual_proc     = 1
+    max_virtual_proc     = 4
+    desired_proc_units   = "0.5"
+    min_proc_units       = "0.1"
+    max_proc_units       = "2.0"
+  }
+
+  # Each entry creates one SR-IOV logical port on the HMC after the LPAR is
+  # created. Use adapter_id and physical_port_id from the powerhmc_sriov data
+  # source to identify the target port.
+  sriov_logical_ports = [
+    {
+      adapter_id       = 1
+      physical_port_id = 0
+      port_type        = "ethernet"
+      # capacity: guaranteed bandwidth in %. Defaults to the port's minimum
+      # granularity when omitted.
+      capacity = 2
+    },
+    {
+      adapter_id       = 1
+      physical_port_id = 0
+      port_type        = "ethernet"
+      # promiscuous_mode is required when this port backs a SEA on a VIOS.
+      promiscuous_mode = true
+    },
+  ]
+}
+
+##############################################
+# Example 5: LPAR with VNIC adapters
+##############################################
+resource "powerhmc_lpar" "vnic" {
+  system_name    = "managed-system"
+  lpar_name      = "lpar-vnic"
+  partition_type = "AIX/Linux"
+
+  mem_config = {
+    desired = 4096
+    min     = 2048
+    max     = 8192
+  }
+
+  proc_config = {
+    proc_mode            = "uncap"
+    desired_virtual_proc = 2
+    min_virtual_proc     = 1
+    max_virtual_proc     = 4
+    desired_proc_units   = "0.5"
+    min_proc_units       = "0.1"
+    max_proc_units       = "2.0"
+  }
+
+  # Each vnic block creates one VNIC adapter. At least one backing_devices
+  # entry is required per VNIC. For failover-capable systems, specify two
+  # backing devices with different failover_priority values.
+  vnic = [
+    {
+      port_vlan_id = 100
+
+      backing_devices = [
+        {
+          vios_name              = "vios1"
+          sriov_adapter_id       = 1
+          sriov_physical_port_id = 0
+          failover_priority      = 1
+        },
+        {
+          vios_name              = "vios2"
+          sriov_adapter_id       = 1
+          sriov_physical_port_id = 1
+          failover_priority      = 2
+        },
+      ]
+    },
+  ]
 }
 ```
 
@@ -156,9 +253,11 @@ resource "powerhmc_lpar" "full" {
 - `io_slots` (List of String) List of physical I/O slot locations to assign to the LPAR partition.
 - `physical_volumes` (Attributes Set) List of physical volumes to attach to the LPAR from VIOS servers. (see [below for nested schema](#nestedatt--physical_volumes))
 - `profile_name` (String) The name of the partition profile. Must start with a letter or digit and contain up to 31 characters. Allowed symbols: `@#^/;:~,.-_=+{}`. Defaults to `default_profile`.
+- `sriov_logical_ports` (Attributes List) List of SR-IOV logical ports to attach to the LPAR. Each entry creates one SR-IOV logical port on the HMC during LPAR creation. Multiple entries with the same `adapter_id` and `physical_port_id` are supported. Adding, removing, or changing any entry in this list will destroy and recreate the entire LPAR. (see [below for nested schema](#nestedatt--sriov_logical_ports))
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `virtual_fibre_channels` (Attributes Set) Set of virtual fibre channel adapters to attach to the LPAR. Each adapter connects the LPAR to a physical fibre channel port on a VIOS server. (see [below for nested schema](#nestedatt--virtual_fibre_channels))
 - `virtual_networks` (Attributes Set) Set of virtual networks to attach to the LPAR. (see [below for nested schema](#nestedatt--virtual_networks))
+- `vnic` (Attributes List) List of Virtual NIC Dedicated (VNIC) adapters to attach to the LPAR. Each entry represents a VNIC to be created on the HMC during LPAR creation. Each VNIC requires at least one `backing_devices` entry specifying the SR-IOV port. Multiple VNICs are supported. Changing any attribute requires replacing the LPAR. (see [below for nested schema](#nestedatt--vnic))
 
 ### Read-Only
 
@@ -219,6 +318,34 @@ Required:
 - `vios_name` (String) The name of the VIOS server that owns the physical volumes.
 
 
+<a id="nestedatt--sriov_logical_ports"></a>
+### Nested Schema for `sriov_logical_ports`
+
+Required:
+
+- `adapter_id` (Number) The numeric SR-IOV adapter ID.
+- `physical_port_id` (Number) The physical port ID on the SR-IOV adapter to back this logical port.
+- `port_type` (String) The type of SR-IOV logical port to create.
+
+Optional:
+
+- `allowed_mac_addresses` (String) Source MAC address filtering policy when no specific list is supplied. Valid values: `"ALL"` (allow all, default) or `"NONE"` (deny all). Set to `"NONE"` when `mac_addresses` is non-empty.
+- `allowed_vlans` (String) VLAN ID filtering policy when no specific list is supplied. Valid values: `"ALL"` (allow all, default) or `"NONE"` (deny all). Must be `"NONE"` when `port_vlan_id` is non-zero. Set to `"NONE"` when `vlan_ids` is non-empty.
+- `capacity` (Number) Guaranteed bandwidth percentage for this logical port (e.g. `2` = 2%). When omitted, the HMC assigns the minimum supported value.
+- `diagnostic_mode` (Boolean) Enables diagnostic (loopback) mode on this logical port. Defaults to `false`.
+- `mac_address` (String) The MAC address for this SR-IOV logical port as 12 lowercase hex digits without separators. When omitted, the HMC assigns a MAC address after creation. Changing this value requires replacing the LPAR.
+- `mac_addresses` (List of String) List of up to 4 specific MAC addresses to allow as 12 lowercase hex digits without separators (e.g. `["f200000001ab", "f200000001ac"]`). When non-empty, `allowed_mac_addresses` is automatically treated as `"NONE"`. Cannot be used together with `allowed_mac_addresses = "ALL"`.
+- `port_vlan_id` (Number) Port VLAN ID (native VLAN). Valid values: `0` (disabled, default) or `1`–`4094`. When non-zero, `allowed_vlans` must be `"NONE"` and `vlan_ids` must be empty.
+- `promiscuous_mode` (Boolean) Enable promiscuous mode on this logical port. Required for ports that back a Shared Ethernet Adapter (SEA) on a VIOS. The physical port must support `promiscuousMode`. Defaults to `false`.
+- `vlan_ids` (List of Number) List of up to 20 specific VLAN IDs to permit on this logical port. When non-empty, `allowed_vlans` is automatically treated as `"NONE"`. Must be empty when `port_vlan_id` (PortVLANID) is non-zero.
+
+Read-Only:
+
+- `location_code` (String) The physical location code of the SR-IOV logical port assigned by the HMC after creation.
+- `logical_port_id` (Number) The logical port identifier assigned by the HMC after creation.
+- `port_uuid` (String) The UUID of the SR-IOV logical port assigned by the HMC after creation. This uniquely identifies the port on the HMC.
+
+
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`
 
@@ -256,6 +383,50 @@ Read-Only:
 
 - `network_adapter` (Map of String) Map of network adapter location code to MAC address for this virtual network. Format: `{"location_code": "MAC_address"}`. MAC addresses are formatted with colons (e.g., `4A:79:55:27:8C:02`).
 
+
+<a id="nestedatt--vnic"></a>
+### Nested Schema for `vnic`
+
+Required:
+
+- `backing_devices` (Attributes Set) SR-IOV backing devices for this VNIC. At least one is required. Multiple backing devices are supported on VNIC SR-IOV failover-capable systems. Each backing device must use a unique `sriov_physical_port_id` within the same VNIC. (see [below for nested schema](#nestedatt--vnic--backing_devices))
+
+Optional:
+
+- `allowed_mac_addresses` (String) Source MAC address filtering policy when no specific list is supplied. Valid values: `"ALL"` (allow all, default) or `"NONE"` (deny all). Set to `"NONE"` when `mac_addresses` is non-empty.
+- `allowed_vlans` (String) VLAN ID filtering policy when no specific list is supplied. Valid values: `"ALL"` (allow all, default) or `"NONE"` (deny all). Set to `"NONE"` when `vlan_ids` is non-empty.
+- `auto_priority_failover` (Boolean) Enables automatic failover priority selection across backing devices. If not specified, the HMC defaults to `true` (enabled).
+- `mac_address` (String) MAC address for this VNIC as 12 lowercase hex digits without separators (e.g. `"fa163e123456"`). Firmware assigns one if omitted.
+- `mac_addresses` (List of String) List of up to 4 specific MAC addresses to allow as 12 lowercase hex digits without separators (e.g. `["fa163e000001", "fa163e000002"]`). When non-empty, `allowed_mac_addresses` is effectively treated as `"NONE"`.
+- `port_vlan_id` (Number) Port VLAN ID (native VLAN). Valid values: `0` (disabled, default) or `1`–`4094`. When non-zero, `allowed_vlans` must be `"NONE"` and `vlan_ids` must be empty.
+- `port_vlan_priority` (Number) IEEE 802.1Q priority for the port VLAN ID (0–7).
+- `slot_number` (Number) The virtual slot number for this VNIC adapter. Auto-assigned by the HMC if omitted.
+- `vlan_ids` (List of Number) List of up to 20 specific VLAN IDs to permit on this VNIC. When non-empty, `allowed_vlans` is effectively treated as `"NONE"`.
+
+Read-Only:
+
+- `desired_mode` (String) The VNIC operating mode determined by the HMC after creation.
+
+<a id="nestedatt--vnic--backing_devices"></a>
+### Nested Schema for `vnic.backing_devices`
+
+Required:
+
+- `sriov_adapter_id` (Number) The numeric SR-IOV adapter ID.
+- `sriov_physical_port_id` (Number) The physical port ID on the SR-IOV adapter. Must be unique across all backing devices within the same VNIC.
+- `vios_name` (String) The name of the VIOS server hosting this backing device.
+
+Optional:
+
+- `current_capacity_percentage` (Number) Guaranteed bandwidth for this backing device as an integer percentage (1–100). Populated from HMC after creation.
+- `failover_priority` (Number) Failover priority (1 = highest, 100 = lowest; default 50). Populated from HMC after creation.
+
+Read-Only:
+
+- `backing_device_state` (String) Operational state of this backing device as reported by the HMC. Populated after creation. Example values: `"operational"`, `"degraded"`, `"failed"`, `"empty"`.
+- `location_code` (String) Physical location code of the SR-IOV logical port backing this device. Populated after creation.
+- `max_capacity_percentage` (Number) Maximum bandwidth ceiling for this backing device as an integer percentage. Read-only — populated from the HMC after creation.
+
 ## Notes
 
 <a id="choosing-a-processor-mode"></a>
@@ -280,6 +451,12 @@ sufficient. The provider identifies the same underlying disk on the peer VIOS
 using its UDID/UUID and automatically attaches it from both sides — you do not
 need to list the corresponding disk entry for the second VIOS explicitly.
 
+### SR-IOV logical ports
+
+Use the `powerhmc_sriov` data source to discover the `adapter_id` and
+`physical_port_id` values needed for `sriov_logical_ports` entries. Multiple
+entries with the same `adapter_id` and `physical_port_id` are supported.
+
 ## Import
 
 Import is supported using the following syntax:
@@ -287,5 +464,5 @@ Import is supported using the following syntax:
 ```shell
 # LPARs are imported using the managed system name and LPAR name,
 # separated by a forward slash: <system_name>/<lpar_name>
-terraform import powerhmc_lpar.dedicated hmc-zz1/lpar-dedicated
+terraform import powerhmc_lpar.dedicated managed-system/lpar-dedicated
 ```

@@ -59,9 +59,11 @@ output "lpar_virtual_networks" {
 - `profile_name` (String) Name of the partition profile.
 - `reference_code` (String) Reference code associated with the LPAR partition.
 - `rmc_state` (String) Current RMC (Resource Monitoring and Control) state of the LPAR partition.
+- `sriov_logical_ports` (Attributes List) List of SR-IOV logical ports attached to the LPAR. (see [below for nested schema](#nestedatt--sriov_logical_ports))
 - `state` (String) Current state of the LPAR partition (e.g., `running`, `not activated`).
 - `virtual_fibre_channels` (Attributes List) List of virtual Fibre Channel mappings for this LPAR (see [below for nested schema](#nestedatt--virtual_fibre_channels))
 - `virtual_networks` (Attributes List) List of virtual networks attached to the LPAR via client network adapters. (see [below for nested schema](#nestedatt--virtual_networks))
+- `vnic` (Attributes List) List of Virtual NIC Dedicated (VNIC) adapters attached to the LPAR. (see [below for nested schema](#nestedatt--vnic))
 
 <a id="nestedatt--mem_config"></a>
 ### Nested Schema for `mem_config`
@@ -106,6 +108,28 @@ Read-Only:
 - `uncapped_weight` (Number) Uncapped weight for the partition (for uncapped shared mode).
 
 
+<a id="nestedatt--sriov_logical_ports"></a>
+### Nested Schema for `sriov_logical_ports`
+
+Read-Only:
+
+- `adapter_id` (Number) The numeric SR-IOV adapter ID.
+- `allowed_mac_addresses` (String) Source MAC address filtering policy (`ALL` or `NONE`).
+- `allowed_vlans` (String) VLAN ID filtering policy (`ALL` or `NONE`).
+- `capacity` (Number) Guaranteed bandwidth percentage for this logical port.
+- `diagnostic_mode` (Boolean) Whether diagnostic (loopback) mode is enabled on this logical port.
+- `location_code` (String) Physical location code of the SR-IOV logical port.
+- `logical_port_id` (Number) The logical port identifier assigned by the HMC.
+- `mac_address` (String) MAC address assigned to this SR-IOV logical port.
+- `mac_addresses` (List of String) Specific MAC addresses allowed on this logical port.
+- `physical_port_id` (Number) The physical port ID on the SR-IOV adapter.
+- `port_type` (String) SR-IOV logical port type: `ethernet` or `roce`.
+- `port_uuid` (String) The UUID of the SR-IOV logical port assigned by the HMC.
+- `port_vlan_id` (Number) Port VLAN ID (0 = disabled).
+- `promiscuous_mode` (Boolean) Whether promiscuous mode is enabled on this logical port.
+- `vlan_ids` (List of Number) Specific VLAN IDs permitted on this logical port.
+
+
 <a id="nestedatt--virtual_fibre_channels"></a>
 ### Nested Schema for `virtual_fibre_channels`
 
@@ -124,3 +148,35 @@ Read-Only:
 - `network_adapter` (Map of String) Map of network adapter location code to MAC address. Format: `{"location_code": "MAC_address"}`. MAC addresses are formatted with colons (e.g., `4A:79:55:27:8C:02`).
 - `network_name` (String) Name of the virtual network.
 - `slot_number` (Number) Virtual slot number of the client network adapter.
+
+
+<a id="nestedatt--vnic"></a>
+### Nested Schema for `vnic`
+
+Read-Only:
+
+- `allowed_mac_addresses` (String) Source MAC address filtering policy (`ALL` or `NONE`).
+- `allowed_vlans` (String) VLAN ID filtering policy (`ALL` or `NONE`).
+- `auto_priority_failover` (Boolean) Whether automatic failover priority selection is enabled.
+- `backing_devices` (Attributes Set) SR-IOV backing devices for this VNIC. (see [below for nested schema](#nestedatt--vnic--backing_devices))
+- `desired_mode` (String) The VNIC mode: `dedicated` or `shared`.
+- `mac_address` (String) MAC address for this VNIC.
+- `mac_addresses` (List of String) Specific MAC addresses allowed on this VNIC.
+- `port_vlan_id` (Number) Port VLAN ID (native VLAN). 0 = disabled.
+- `port_vlan_priority` (Number) IEEE 802.1Q priority for the port VLAN ID (0–7).
+- `slot_number` (Number) Virtual slot number for this VNIC adapter.
+- `vlan_ids` (List of Number) Specific VLAN IDs permitted on this VNIC.
+
+<a id="nestedatt--vnic--backing_devices"></a>
+### Nested Schema for `vnic.backing_devices`
+
+Read-Only:
+
+- `backing_device_state` (String) Operational state of this backing device.
+- `current_capacity_percentage` (Number) Guaranteed bandwidth for this backing device as an integer percentage.
+- `failover_priority` (Number) Failover priority (1 = highest, 100 = lowest).
+- `location_code` (String) Physical location code of the SR-IOV logical port backing this device.
+- `max_capacity_percentage` (Number) Maximum bandwidth ceiling for this backing device as an integer percentage.
+- `sriov_adapter_id` (Number) SR-IOV adapter index.
+- `sriov_physical_port_id` (Number) Physical port ID on the SR-IOV adapter.
+- `vios_name` (String) Name of the VIOS hosting this backing device.
